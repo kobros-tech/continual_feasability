@@ -1,0 +1,51 @@
+name: ci
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          build: false
+      - name: Build library and tests (log kept)
+        run: |
+          lake exe cache get || true
+          lake build 2>&1 | tee build.log
+          lake build Tests 2>&1 | tee -a build.log
+      - name: Axiom audit (no sorry, no native_decide)
+        run: |
+          ! grep -E "sorryAx|ofReduceBool|Lean.trustCompiler" build.log
+          grep -c "propext" build.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log
+          path: build.log
+
+  mathlib-inspect:   # Stage-1 evidence: print real signatures of reused / related Mathlib results
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leanprover/lean-action@v1
+        with:
+          build: false
+      - run: lake exe cache get || true
+      - name: Signatures
+        run: |
+          cat > Inspect.lean <<'EOF'
+          import Mathlib
+          open Matrix
+          #check @Matrix.mulVec_mulVec
+          #check @Matrix.dotProduct_mulVec
+          #check @LinearMap.finrank_range_add_finrank_ker
+          #check @LinearMap.finrank_range_of_inj
+          #check @Set.exists_max_image
+          #check @Set.exists_min_image
+          #check @Fin.snoc_castSucc
+          #check @PointedCone.DualFG
+          EOF
+          lake env lean Inspect.lean
+          grep -rli "farkas\|motzkin" .lake/packages/mathlib/Mathlib | head || true
