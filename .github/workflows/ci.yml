@@ -10,14 +10,29 @@ jobs:
         with:
           build: false
       - name: Build library and tests (log kept)
+        shell: bash
         run: |
+          set -euo pipefail
           lake exe cache get || true
           lake build 2>&1 | tee build.log
           lake build Tests 2>&1 | tee -a build.log
-      - name: Axiom audit (no sorry, no native_decide)
+      - name: Committed manifest must be sufficient (lake must not rewrite it)
+        run: git diff --exit-code lake-manifest.json
+      - name: Axiom audit (no sorry, no native_decide, only standard axioms)
+        shell: bash
         run: |
-          ! grep -E "sorryAx|ofReduceBool|Lean.trustCompiler" build.log
-          grep -c "propext" build.log || true
+          set -euo pipefail
+          if grep -E "sorryAx|ofReduceBool|Lean.trustCompiler" build.log; then
+            echo "forbidden axiom found"; exit 1
+          fi
+          # every reported axiom list must be a subset of the three standard axioms
+          if grep "depends on axioms" build.log | grep -v -E "axioms: \[(propext|Classical\.choice|Quot\.sound)(, (propext|Classical\.choice|Quot\.sound))*\]$"; then
+            echo "non-standard axiom list"; exit 1
+          fi
+          want=$(grep -c "^#print axioms" Tests.lean)
+          got=$(grep -c -E "depends on axioms|does not depend on any axioms" build.log)
+          echo "audited declarations: expected >= $want, reported $got"
+          test "$got" -ge "$want"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

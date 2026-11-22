@@ -223,11 +223,92 @@ def lCond : RowIx 2 3 1 3 → ℚ :=
 theorem test8_cond_no : NoCert (Cmat sCond) (dvec sCond) lCond := by decide +kernel
 theorem test8_cond_infeasible : ¬ ∃ W, Feasible sCond W := theoremD sCond lCond test8_cond_no
 
+/-! ## Stage 3a: array checker — valid AND deliberately invalid certificates
+Systems are `C b ≥ d`. `sysY`: `x ≥ 1, -x ≥ -3`.  `sysN`: `x ≥ 1, -x ≥ 0` (infeasible). -/
+open ContinualFeasibility.ArrSys
+
+def sysY : ArrSys := { m := 2, n := 1, C := #[#[1], #[-1]], d := #[1, -3] }
+def sysN : ArrSys := { m := 2, n := 1, C := #[#[1], #[-1]], d := #[1, 0] }
+
+-- YES: valid witness accepted; violating, wrong-length and empty vectors rejected (no truncation)
+theorem chk_yes_ok : checkYes sysY #[2] = true := by decide +kernel
+theorem chk_yes_boundary : checkYes sysY #[1] = true := by decide +kernel
+theorem chk_yes_violates : checkYes sysY #[5] = false := by decide +kernel
+theorem chk_yes_toolong : checkYes sysY #[2, 2] = false := by decide +kernel
+theorem chk_yes_empty : checkYes sysY #[] = false := by decide +kernel
+-- infeasible system: no witness is accepted
+theorem chk_yes_on_infeasible : checkYes sysN #[1] = false := by decide +kernel
+
+-- NO: valid Farkas certificate accepted (also scaled); every defect rejected
+theorem chk_no_ok : checkNo sysN #[1, 1] = true := by decide +kernel
+theorem chk_no_scaled : checkNo sysN #[2, 2] = true := by decide +kernel
+theorem chk_no_not_cancelling : checkNo sysN #[1, 0] = false := by decide +kernel   -- Cᵀλ ≠ 0
+theorem chk_no_negative : checkNo sysN #[-1, -1] = false := by decide +kernel      -- λ ≱ 0
+theorem chk_no_zero_obj : checkNo sysN #[0, 0] = false := by decide +kernel         -- dᵀλ = 0
+theorem chk_no_toolong : checkNo sysN #[1, 1, 1] = false := by decide +kernel
+theorem chk_no_tooshort : checkNo sysN #[1] = false := by decide +kernel
+-- a feasible system admits no NO certificate in these attempts
+theorem chk_no_on_feasible : checkNo sysY #[1, 1] = false := by decide +kernel
+
+-- malformed systems are rejected by BOTH checkers (never silently truncated/padded)
+def sysRagged : ArrSys := { m := 2, n := 1, C := #[#[1], #[-1, 0]], d := #[1, 0] }
+def sysShortD : ArrSys := { m := 2, n := 1, C := #[#[1], #[-1]], d := #[1] }
+def sysFewRows : ArrSys := { m := 3, n := 1, C := #[#[1], #[-1]], d := #[1, 0, 0] }
+theorem chk_ragged_yes : checkYes sysRagged #[2] = false := by decide +kernel
+theorem chk_ragged_no : checkNo sysRagged #[1, 1] = false := by decide +kernel
+theorem chk_shortd_yes : checkYes sysShortD #[2] = false := by decide +kernel
+theorem chk_shortd_no : checkNo sysShortD #[1, 1] = false := by decide +kernel
+theorem chk_fewrows_no : checkNo sysFewRows #[1, 1, 0] = false := by decide +kernel
+
+-- vacuous vs non-vacuous zero rows
+def sysVac : ArrSys := { m := 2, n := 1, C := #[#[0], #[1]], d := #[0, 1] }   -- row 0: 0 ≥ 0
+def sysZero : ArrSys := { m := 1, n := 1, C := #[#[0]], d := #[1] }           -- row 0: 0 ≥ 1
+theorem chk_vacuous_ok : checkYes sysVac #[1] = true := by decide +kernel
+theorem chk_zero_row_no : checkNo sysZero #[1] = true := by decide +kernel
+theorem chk_zero_row_yes : checkYes sysZero #[0] = false := by decide +kernel
+
+-- the accepted NO certificate really refutes the Matrix system (bridge theorem in use)
+theorem chk_no_refutes : ¬ ∃ b, YesCert (toMat sysN) (toD sysN) b :=
+  checkNo_sound sysN #[1, 1] chk_no_ok
+theorem chk_yes_solves : ∃ b, YesCert (toMat sysY) (toD sysY) b :=
+  checkYes_sound sysY #[2] chk_yes_ok
+
 #print axioms theoremB
 #print axioms theoremC
 #print axioms theoremD
 #print axioms theoremE
 #print axioms theoremF
+#print axioms yes_behavior
+#print axioms ContinualFeasibility.preserves_of_rep
+#print axioms ContinualFeasibility.mul_zero_iff
+#print axioms ContinualFeasibility.forced_zero
+#print axioms ContinualFeasibility.nullity_eq
 #print axioms ContinualFeasibility.rank_eq
+#print axioms ContinualFeasibility.farkas_forward
+#print axioms ContinualFeasibility.farkas
+#print axioms ContinualFeasibility.decision
+#print axioms ContinualFeasibility.decision_exclusive
+#print axioms ContinualFeasibility.vacuous_row_sat
+#print axioms ContinualFeasibility.zero_row_infeasible
+#print axioms ContinualFeasibility.ArrSys.checkYes_iff
+#print axioms ContinualFeasibility.ArrSys.checkNo_iff
+#print axioms ContinualFeasibility.ArrSys.checkYes_sound
+#print axioms ContinualFeasibility.ArrSys.checkNo_sound
+#print axioms ContinualFeasibility.ArrSys.check_exclusive
+#print axioms ContinualFeasibility.ArrSys.yes_transfer
+#print axioms ContinualFeasibility.ArrSys.no_transfer
+#print axioms test1
+#print axioms test2
+#print axioms test3
+#print axioms test3_rank
+#print axioms test4_forced
+#print axioms test4_yes
+#print axioms test5
+#print axioms test6_g1
+#print axioms test6_g2
 #print axioms test7_F
+#print axioms test8_joint_yes
+#print axioms test8_bad_first_step_valid
 #print axioms test8_cond_infeasible
+#print axioms chk_no_refutes
+#print axioms chk_yes_solves
