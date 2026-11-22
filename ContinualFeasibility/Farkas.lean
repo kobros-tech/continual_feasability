@@ -95,9 +95,13 @@ def zerS {n : ℕ} (S : Set (LRow (n + 1))) : Set (LRow (n + 1)) :=
 def elim {n : ℕ} (S : Set (LRow (n + 1))) : Set (LRow n) :=
   proj '' zerS S ∪ Set.image2 comb (posS S) (negS S)
 
+theorem posS_sub {n : ℕ} (S : Set (LRow (n + 1))) : posS S ⊆ S := fun _ hr => hr.1
+theorem negS_sub {n : ℕ} (S : Set (LRow (n + 1))) : negS S ⊆ S := fun _ hr => hr.1
+theorem zerS_sub {n : ℕ} (S : Set (LRow (n + 1))) : zerS S ⊆ S := fun _ hr => hr.1
+
 theorem elim_finite {n : ℕ} {S : Set (LRow (n + 1))} (hS : S.Finite) : (elim S).Finite :=
-  ((hS.subset fun r hr => hr.1).image proj).union
-    (Set.Finite.image2 comb (hS.subset fun r hr => hr.1) (hS.subset fun r hr => hr.1))
+  ((hS.subset (zerS_sub S)).image proj).union
+    (Set.Finite.image2 comb (hS.subset (posS_sub S)) (hS.subset (negS_sub S)))
 
 theorem exists_between (L U : Set ℚ) (hL : L.Finite) (hU : U.Finite)
     (h : ∀ l ∈ L, ∀ u ∈ U, l ≤ u) :
@@ -118,8 +122,8 @@ theorem extend {n : ℕ} (S : Set (LRow (n + 1))) (hS : S.Finite) (b' : Fin n �
   classical
   let A : LRow (n + 1) → ℚ := fun r => tail r.1 ⬝ᵥ b'
   let lo : LRow (n + 1) → ℚ := fun r => (r.2 - A r) / r.1 (Fin.last n)
-  have hpos : (posS S).Finite := hS.subset fun r hr => hr.1
-  have hneg : (negS S).Finite := hS.subset fun r hr => hr.1
+  have hpos : (posS S).Finite := hS.subset (posS_sub S)
+  have hneg : (negS S).Finite := hS.subset (negS_sub S)
   obtain ⟨x, hxL, hxU⟩ := exists_between (lo '' posS S) (lo '' negS S)
     (hpos.image lo) (hneg.image lo) (by
       rintro _ ⟨r, hr, rfl⟩ _ ⟨s, hs, rfl⟩
@@ -181,9 +185,9 @@ theorem lift {n : ℕ} (S : Set (LRow (n + 1))) :
     · refine ⟨(-s.1 (Fin.last n)) • r + (r.1 (Fin.last n)) • s,
         Cone.add (Cone.smul (neg_nonneg.2 hs.2.le) (Cone.base hr.1))
           (Cone.smul hr.2.le (Cone.base hs.1)), ?_, ?_, ?_⟩
-    · simp <;> ring
-    · funext i; simp [tail, comb]
-    · simp [comb]
+      · simp <;> ring
+      · funext i; simp [tail, comb]
+      · simp [comb]
   | zero => exact ⟨0, Cone.zero, by simp, by funext i; simp [tail], by simp⟩
   | @add r0 s0 _ _ ih1 ih2 =>
     obtain ⟨t1, c1, l1, a1, b1⟩ := ih1
@@ -273,7 +277,7 @@ theorem farkas_fin {ρ : Type*} [Fintype ρ] {n : ℕ} (C : Matrix ρ (Fin n) �
   classical
   have hfin : (Set.range fun i => ((C i : Fin n → ℚ), d i)).Finite := Set.finite_range _
   have hinf : ∀ b : Fin n → ℚ, ∃ r ∈ Set.range (fun i => ((C i : Fin n → ℚ), d i)),
-      ¬ r.Sat b := by
+      ¬ LRow.Sat b r := by
     intro b
     by_contra hcon
     push_neg at hcon
