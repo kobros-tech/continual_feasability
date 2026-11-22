@@ -128,6 +128,7 @@ def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50, rule=
         return FAIL, f"unknown pivot rule {rule!r}", {}
     pivots = degenerate_run = 0
     bland = rule == "bland"
+    bland_ever = bland          # reported as stats["bland_used"]: ever activated, not final state
     stats = {}
     while True:
         # entering variable
@@ -181,11 +182,11 @@ def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50, rule=
             if ratio == 0:
                 degenerate_run += 1
                 if degenerate_run >= stall_limit:
-                    bland = True
+                    bland = bland_ever = True
             else:
                 degenerate_run, bland = 0, False
 
-    stats = {"pivots": pivots, "bland_used": bland}
+    stats = {"pivots": pivots, "bland_used": bland_ever}
     if obj == 0:
         x = [Q(0)] * ncols
         for i in range(m):

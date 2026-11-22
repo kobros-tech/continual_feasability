@@ -137,6 +137,21 @@ def test_bland_only_rule_agrees_and_is_verified():
         assert sb[0] in (YES, NO) and sh[0] in (YES, NO) and sd[0] in (YES, NO)
         assert sb[0] == sh[0] == sd[0], (C, d)       # feasibility is rule-independent (exclusivity)
 
+def test_bland_used_means_ever_used():
+    C, d, m, n = mk([[1, 0], [0, 1], [1, 1]], [1, 1, 2])
+    assert solve_and_verify(C, d, m, n, rule="bland")[2]["bland_used"] is True
+    assert solve_and_verify(C, d, m, n, rule="hybrid")[2]["bland_used"] is False  # no stall
+    # hybrid with stall_limit=1 switches to Bland on a degenerate pivot and may switch back after
+    # a strict one; the statistic must still say True. Find such a run.
+    rng = random.Random(11); seen = False
+    for _ in range(600):
+        m_, n_ = rng.randint(3, 10), rng.randint(2, 5)
+        Cr = [[Q(rng.choice([-1, 0, 0, 1])) for _ in range(n_)] for _ in range(m_)]
+        dr = [Q(rng.choice([0, 0, 1])) for _ in range(m_)]
+        st = solve_and_verify(Cr, dr, m_, n_, stall_limit=1)[2]
+        seen |= st["bland_used"] is True
+    assert seen
+
 def test_unknown_rule_is_failure_not_verdict():
     C, d, m, n = mk([[1], [-1]], [1, 0])
     assert solve_and_verify(C, d, m, n, rule="dantzig_forever")[0] == FAIL
