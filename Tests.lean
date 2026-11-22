@@ -8,9 +8,18 @@ Conventions: `Spec p K T N`; times `0..T`; `ct`/`et` give class/example introduc
 
 open ContinualFeasibility Matrix
 
+/-- Componentwise Boolean equality of row indices (avoids a `DecidableEq (RowIx ..)` instance). -/
+def rowEq {p K T N : ℕ} : RowIx p K T N → RowIx p K T N → Bool
+  | .inl a, .inl b => decide (a = b)
+  | .inr (.inl a), .inr (.inl b) => decide (a = b)
+  | .inr (.inr (.inl a)), .inr (.inr (.inl b)) => decide (a = b)
+  | .inr (.inr (.inr (.inl a))), .inr (.inr (.inr (.inl b))) => decide (a = b)
+  | .inr (.inr (.inr (.inr a))), .inr (.inr (.inr (.inr b))) => decide (a = b)
+  | _, _ => false
+
 /-- Indicator (multiplier 1) of a listed set of rows; all other multipliers are 0. -/
 def supp {p K T N : ℕ} (L : List (RowIx p K T N)) : RowIx p K T N → ℚ :=
-  fun r => if r ∈ L then 1 else 0
+  fun r => if L.any (rowEq r) = true then 1 else 0
 
 /-! ## Test 1: simple YES with known rational witness -/
 def s1 : Spec 1 2 1 2 where
