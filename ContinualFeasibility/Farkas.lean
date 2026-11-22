@@ -280,8 +280,12 @@ theorem farkas_fin {ρ : Type*} [Fintype ρ] {n : ℕ} (C : Matrix ρ (Fin n) �
       ¬ LRow.Sat b r := by
     intro b
     by_contra hcon
-    push_neg at hcon
-    exact h ⟨b, fun i => hcon _ ⟨i, rfl⟩⟩
+    apply h
+    refine ⟨b, fun i => ?_⟩
+    by_contra hlt
+    have hdef : (C *ᵥ b) i = C i ⬝ᵥ b := rfl
+    rw [hdef] at hlt
+    exact hcon ⟨((C i : Fin n → ℚ), d i), ⟨i, rfl⟩, hlt⟩
   obtain ⟨c, hc, hcone⟩ := fm n _ hfin hinf
   obtain ⟨l, hl, e1, e2⟩ := cone_mult_fin C d _ hcone
   exact ⟨l, hl, e1.symm, lt_of_lt_of_eq hc e2⟩
