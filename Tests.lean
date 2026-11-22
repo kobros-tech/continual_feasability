@@ -8,6 +8,10 @@ Conventions: `Spec p K T N`; times `0..T`; `ct`/`et` give class/example introduc
 
 open ContinualFeasibility Matrix
 
+/-- Indicator (multiplier 1) of a listed set of rows; all other multipliers are 0. -/
+def supp {p K T N : ℕ} (L : List (RowIx p K T N)) : RowIx p K T N → ℚ :=
+  fun r => if r ∈ L then 1 else 0
+
 /-! ## Test 1: simple YES with known rational witness -/
 def s1 : Spec 1 2 1 2 where
   ct := ![1, 1]
@@ -37,7 +41,7 @@ def s2 : Spec 1 2 1 2 where
   hγ := by norm_num
   hy := by decide +kernel
 
-def l2 : RowIx 1 2 1 2 → ℚ := fun r => if r = nrow 0 1 ∨ r = nrow 1 0 then 1 else 0
+def l2 : RowIx 1 2 1 2 → ℚ := supp [nrow 0 1, nrow 1 0]
 
 theorem test2 : NoCert (Cmat s2) (dvec s2) l2 := by decide +kernel
 theorem test2_infeasible : ¬ ∃ W, Feasible s2 W := theoremD s2 l2 test2
@@ -56,7 +60,7 @@ def s3 : Spec 2 3 2 3 where
   hγ := by norm_num
   hy := by decide +kernel
 
-def l3 : RowIx 2 3 2 3 → ℚ := fun r => if r = orow 2 0 2 ∨ r = nrow 2 0 then 1 else 0
+def l3 : RowIx 2 3 2 3 → ℚ := supp [orow 2 0 2, nrow 2 0]
 
 theorem test3 : NoCert (Cmat s3) (dvec s3) l3 := by decide +kernel
 theorem test3_infeasible : ¬ ∃ W, Feasible s3 W := theoremD s3 l3 test3
@@ -204,9 +208,8 @@ def sCond : Spec 2 3 1 3 where
   hγ := by norm_num
   hy := by decide +kernel
 
-def lCond : RowIx 2 3 1 3 → ℚ := fun r =>
-  if r = orow 1 0 2 ∨ r = orow 1 1 2 ∨ r = prow 1 0 0 false ∨ r = irow 0 0 false
-     ∨ r = prow 1 1 1 false ∨ r = irow 1 0 true then 1 else 0
+def lCond : RowIx 2 3 1 3 → ℚ :=
+  supp [orow 1 0 2, orow 1 1 2, prow 1 0 0 false, irow 0 0 false, prow 1 1 1 false, irow 1 0 true]
 
 theorem test8_cond_no : NoCert (Cmat sCond) (dvec sCond) lCond := by decide +kernel
 theorem test8_cond_infeasible : ¬ ∃ W, Feasible sCond W := theoremD sCond lCond test8_cond_no
