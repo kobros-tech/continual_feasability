@@ -125,6 +125,22 @@ def test_greedy_trap_shape():
     Cp, dp, mp, np_ = mk([[1, 0], [-1, 0], [1, 1], [-1, -1]], [5, -5, 1, -3 + 4])
     assert solve_and_verify(Cp, dp, mp, np_)[0] == NO   # pinned b1=5, b1+b2>=1 and <=-1
 
+def test_bland_only_rule_agrees_and_is_verified():
+    rng = random.Random(7)
+    for _ in range(400):
+        m, n = rng.randint(1, 10), rng.randint(1, 5)
+        C = [[Q(rng.choice([-2, -1, 0, 0, 1, 2])) for _ in range(n)] for _ in range(m)]
+        d = [Q(rng.choice([-1, 0, 0, 1, 2])) for _ in range(m)]
+        sb = solve_and_verify(C, d, m, n, rule="bland")
+        sh = solve_and_verify(C, d, m, n, rule="hybrid", stall_limit=1)
+        sd = solve_and_verify(C, d, m, n, rule="hybrid", stall_limit=50)
+        assert sb[0] in (YES, NO) and sh[0] in (YES, NO) and sd[0] in (YES, NO)
+        assert sb[0] == sh[0] == sd[0], (C, d)       # feasibility is rule-independent (exclusivity)
+
+def test_unknown_rule_is_failure_not_verdict():
+    C, d, m, n = mk([[1], [-1]], [1, 0])
+    assert solve_and_verify(C, d, m, n, rule="dantzig_forever")[0] == FAIL
+
 import json, os, tempfile, subprocess, sys
 
 def _run_cli(obj):

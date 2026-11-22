@@ -82,7 +82,7 @@ def verify_no(C, d, m, n, lam):
 
 
 # ---------- solver ----------
-def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50):
+def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50, rule="hybrid"):
     """Returns (status, payload, stats). payload = b | lam | reason."""
     t0 = time.monotonic()
     if not well_formed(C, d, m, n):
@@ -112,8 +112,22 @@ def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50):
         rc[j] = -sum(T[i][j] for i in range(m))
     obj = sum(rhs)
 
+    # Pivot rule. rule="bland": Bland's rule throughout (smallest-index entering variable and
+    # smallest-index tie-break on leaving), which cannot cycle. rule="hybrid" (default): Dantzig,
+    # with a switch to Bland after `stall_limit` consecutive degenerate pivots, back to Dantzig
+    # after a strictly improving pivot. Termination argument for the hybrid:
+    #   * a degenerate pivot (ratio 0) leaves the objective unchanged, a strict pivot lowers it;
+    #   * a cycle of bases has constant objective, so it consists only of degenerate pivots and the
+    #     counter is never reset while it runs; after at most `stall_limit` pivots Bland is on;
+    #   * Bland never cycles, so it leaves the degenerate vertex set by a strict pivot or stops;
+    #   * each strict pivot lowers the objective, so no basis seen before a strict pivot can recur;
+    #     there are finitely many bases, hence finitely many strict pivots.
+    # Cycle length < stall_limit is therefore not a hole. Regardless, max_pivots bounds every run
+    # and exhaustion is SOLVER_FAILURE, never NO.
+    if rule not in ("hybrid", "bland"):
+        return FAIL, f"unknown pivot rule {rule!r}", {}
     pivots = degenerate_run = 0
-    bland = False
+    bland = rule == "bland"
     stats = {}
     while True:
         # entering variable
@@ -163,12 +177,13 @@ def solve(C, d, m, n, max_pivots=100_000, time_limit=None, stall_limit=50):
         obj += f * prhs            # f<0, so obj decreases by |f|*prhs
         basis[lv] = ent
         pivots += 1
-        if ratio == 0:
-            degenerate_run += 1
-            if degenerate_run >= stall_limit:
-                bland = True
-        else:
-            degenerate_run, bland = 0, False
+        if rule == "hybrid":
+            if ratio == 0:
+                degenerate_run += 1
+                if degenerate_run >= stall_limit:
+                    bland = True
+            else:
+                degenerate_run, bland = 0, False
 
     stats = {"pivots": pivots, "bland_used": bland}
     if obj == 0:
