@@ -7,9 +7,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Solver unit tests (untrusted generator)
-        run: python3 solver/test_solver.py
+        run: |
+          python3 solver/test_solver.py
+          python3 solver/test_spec_export.py
       - name: Certs.lean must be exactly what the solver pipeline generates
-        run: python3 solver/pipeline.py --check
+        run: |
+          python3 solver/pipeline.py --check
+          python3 solver/spec_pipeline.py --check
       - uses: leanprover/lean-action@v1
         with:
           build: false
@@ -21,6 +25,7 @@ jobs:
           lake build 2>&1 | tee build.log
           lake build Tests 2>&1 | tee -a build.log
           lake build Certs 2>&1 | tee -a build.log
+          lake build SpecCerts 2>&1 | tee -a build.log
       - name: Committed manifest must be sufficient (lake must not rewrite it)
         run: git diff --exit-code lake-manifest.json
       - name: Axiom audit (no sorry, no native_decide, only standard axioms)
@@ -34,7 +39,7 @@ jobs:
           if grep "depends on axioms" build.log | grep -v -E "axioms: \[(propext|Classical\.choice|Quot\.sound)(, (propext|Classical\.choice|Quot\.sound))*\]$"; then
             echo "non-standard axiom list"; exit 1
           fi
-          want=$(cat Tests.lean Certs.lean | grep -c "^#print axioms")
+          want=$(cat Tests.lean Certs.lean SpecCerts.lean | grep -c "^#print axioms")
           got=$(grep -c -E "depends on axioms|does not depend on any axioms" build.log)
           echo "audited declarations: expected >= $want, reported $got"
           test "$got" -ge "$want"
