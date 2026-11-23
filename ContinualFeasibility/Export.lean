@@ -34,28 +34,22 @@ open Matrix
 def arrOfFn {α : Type*} (n : ℕ) (f : Fin n → α) : Array α := (List.ofFn f).toArray
 
 theorem arrOfFn_size {α : Type*} (n : ℕ) (f : Fin n → α) : (arrOfFn n f).size = n := by
-  first
-  | (simp [arrOfFn]; done)
-  | (unfold arrOfFn; rw [List.size_toArray, List.length_ofFn])
+  simp [arrOfFn]
 
 theorem arrOfFn_getD {α : Type*} (n : ℕ) (f : Fin n → α) (i : ℕ) (hi : i < n) (v : α) :
     (arrOfFn n f).getD i v = f ⟨i, hi⟩ := by
-  have hs : i < (arrOfFn n f).size := by rw [arrOfFn_size]; exact hi
-  first
-  | (simp [arrOfFn, Array.getD, hi]; done)
-  | (unfold Array.getD; rw [dif_pos hs]; simp [arrOfFn]; done)
-  | (rw [Array.getD_eq_getD_getElem?]; simp [arrOfFn, hi]; done)
+  simp [arrOfFn, Array.getD, hi]
 
 /-! ### Computable index bijections -/
 
 def boolFin : Bool ≃ Fin 2 where
   toFun b := if b then ⟨1, by omega⟩ else ⟨0, by omega⟩
   invFun i := decide (i.val = 1)
-  left_inv b := by cases b <;> first | rfl | decide | simp
+  left_inv b := by cases b <;> rfl
   right_inv i := by
     rcases i with ⟨v, hv⟩
     have h : v = 0 ∨ v = 1 := by omega
-    rcases h with rfl | rfl <;> first | rfl | decide | simp
+    rcases h with rfl | rfl <;> rfl
 
 def eProd3 (a b c : ℕ) : Fin a × Fin b × Fin c ≃ Fin (a * (b * c)) :=
   (Equiv.prodCongr (Equiv.refl (Fin a)) (finProdFinEquiv : Fin b × Fin c ≃ Fin (b * c))).trans
